@@ -1,0 +1,81 @@
+#svl
+
+const DEFAULTS = [
+
+    code: "+++++++++[>+++++++++>++++++++>++++>++++++++++++>+++++++>+++++++++++++<<<<<<-]>++.+++.>++++.>----.>---.>>--.<<<.<<--.>>>>>++.---.<<.+++++.-------.<.>>++++.>---.--.+++.----.<<--.>>++++++++.<<.",
+    file: []
+
+];
+
+function GetValues []
+    const PANEL = [
+	title : 'User Input',
+        Text : [             // default data type is 'char'
+	    name: 'name',     // text field identifier
+            title : 'Name:',   // text field label
+	    type  : 'int'
+	]
+    ];
+
+    local values = WindowPrompt [PANEL, []];
+    return values.name;
+endfunction
+
+function brainfuck_interpreter opt
+
+    opt = tagcat [opt, DEFAULTS];
+
+    local code = [];
+    if not isnull opt.file then
+	code = cat freadb [opt.file, 'line', INT_MAX];
+    else
+	code = opt.code;
+    endif
+
+    local tape = rep [0, 30000];
+    local pointer = 1;
+    local code_pointer = 1;
+    local loop_stack = [];
+    local command, open_loops;
+
+    while code_pointer < length code + 1 loop
+	command = code(code_pointer);
+	if command == ">" then
+	    pointer = inc pointer;
+	elseif command == "<" then
+	    pointer = dec pointer;
+	elseif command == "+" then
+	    tape[pointer] = mod [tape[pointer]+1, 256];
+	elseif command == "-" then
+	    tape[pointer] = mod [tape[pointer]-1, 256];
+	elseif command == "." then
+	    write ['{}', char tape[pointer]];
+	elseif command == "," then
+	    tape[pointer] = GetValues [];
+	elseif command == "[" then
+	    if tape[pointer] == 0 then
+		open_loops = 1;
+		while open_loops > 0 loop
+		    code_pointer = inc code_pointer;
+		    if code[code_pointer] == "[" then
+			open_loops = inc open_loops;
+		    elseif code[code_pointer] == "]" then
+			open_loops = dec open_loops;
+		    endif
+		endloop
+	    else
+		loop_stack = append [loop_stack, code_pointer];
+	    endif
+	elseif command == "]" then
+	    if tape[pointer] <> 0 then
+		code_pointer = last loop_stack;
+	    else
+		loop_stack = droplast loop_stack;
+	    endif
+	endif
+
+	code_pointer = inc code_pointer;
+
+    endloop
+
+endfunction
